@@ -3,7 +3,6 @@ import argparse
 import ConfigParser
 import os
 import sys
-import time
 import socket
 import MySQLdb
 import statsd
@@ -30,7 +29,6 @@ def main(settings, logger):
 
 
     def collect():
-        print "here"
         coll = gather.collect()
         if coll:
             gather.send()
@@ -101,4 +99,4 @@ if __name__ == '__main__':
     settings = validate_config(args.config)
 
     main(settings, logger)
-    
+
