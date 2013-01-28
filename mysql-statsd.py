@@ -3,6 +3,7 @@ import argparse
 import ConfigParser
 import os
 import sys
+import time
 import socket
 import MySQLdb
 import statsd
@@ -27,14 +28,39 @@ def main(settings, logger):
     stats = statsd.StatsClient(settings['statsd_host'], settings['statsd_port'], prefix=settings['prefix'], batch_len=10000)
     gather = mysqlstats.Gather(mysql_cursor, stats, logger)
 
+    def stats_count(stat, value):
+        '''
+        Increment a statsd counter
+        '''
+        stats.incr('mysql.{0}'.format(stat), value)
+
+    def stats_timer(stat, value):
+        '''
+        Make a statsd timer call
+        '''
+        statsd.timer('mysql.{0}'.format(stat), value)
+
+    def stats_gauge(stat, value):
+        '''
+        Make a guage statsd call
+        '''
+        stats.gauge('mysql.{0}'.format(stat), value)
+
+    calls = {
+        'gauge': stats_gauge,
+        'count': stats_count,
+        'timer': stats_timer
+        }
 
     def collect():
-        coll = gather.collect()
-        if coll:
-            gather.send()
+        results = gather.collect()
+        if results['connected']:
+            for result in results['mysql_vars']:
+                statsd_call = calls[results['mysql_vars'][result][0]]
+                statsd_call(result, results['mysql_vars'][result][1])
+            stats.flush()
             return
         else:
-            gather.send()
             logger.warn('Something is wrong.... Shutting down - see logs for errors')
             reactor.callFromThread(reactor.stop)
 
