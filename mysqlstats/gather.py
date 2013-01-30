@@ -209,15 +209,112 @@ class Gather(object):
                 self.results['mysql_vars']['pending_log_writes'][1] = floats[0]
                 self.results['mysql_vars']['pending_chkp_writes'][1] = floats[1]
 
-            # elif 'Log sequence number' in row:
+            elif 'Log sequence number' in row:
+                floats = self.row_float(row)
+                if len(floats) > 1:
+                    seq_num = int(floats[0]) * 4294967296 + int(floats[1])
+                else:
+                    seq_num = floats[0]
+                self.results['mysql_vars']['log_bytes_written'][1] = seq_num
 
+            elif 'Log flushed up to' in row:
+                floats = self.row_float(row)
+                if len(floats) > 1:
+                    seq_num = int(floats[0]) * 4294967296 + int(floats[1])
+                else:
+                    seq_num = floats[0]
+                self.results['mysql_vars']['log_bytes_flushed'][1] = seq_num
+
+            elif 'Last checkpoint at' in row:
+                floats = self.row_float(row)
+                if len(floats) > 1:
+                    seq_num = int(floats[0]) * 4294967296 + int(floats[1])
+                else:
+                    seq_num = floats[0]
+                self.results['mysql_vars']['last_checkpoint'][1] = seq_num
+
+            elif 'Total memory allocated' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['total_mem_alloc'][1] = floats[0]
+                self.results['mysql_vars']['additional_pool_alloc'][1] = floats[1]
+
+            elif 'Adaptive hash index' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['adaptive_hash_memory'][1] = floats[0]
+
+            elif 'Page hash' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['page_hash_memory'][1] = floats[0]
+
+            elif 'Dictionary cache' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['dictionary_cache_memory'][1] = floats[0]
+
+            elif 'File system' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['file_system_memory'][1] = floats[0]
+
+            elif 'Lock system' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['lock_system_memory'][1] = floats[0]
+
+            elif 'Recovery system' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['recovery_system_memory'][1] = floats[0]
+
+            elif 'Threads             ' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['thread_hash_memory'][1] = floats[0]
+
+            elif 'innodb_io_pattern' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['innodb_io_pattern_memory'][1] = floats[0]
+
+            elif 'Buffer pool size ' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['pool_size'][1] = floats[0]
+
+            elif 'Buffer pool size, bytes' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['pool_size'][1] = floats[0]
+
+            elif 'Free buffers' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['free_pages'][1] = floats[0]
+
+            elif 'Database pages' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['database_pages'][1] = floats[0]
+
+            elif 'Modified db pages' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['modified_pages'][1] = floats[0]
+
+            elif 'Pages read' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['pages_read'][1] = floats[0]
+                self.results['mysql_vars']['pages_created'][1] = floats[1]
+                self.results['mysql_vars']['pages_written'][1] = floats[2]
+
+            elif 'Number of rows inserted' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['rows_inserted'][1] = floats[0]
+                self.results['mysql_vars']['rows_updated'][1] = floats[1]
+                self.results['mysql_vars']['rows_deleted'][1] = floats[2]
+                self.results['mysql_vars']['rows_read'][1] = floats[3]
+
+            elif ' queries inside InnoDB, ' in row:
+                floats = self.row_float(row)
+                self.results['mysql_vars']['queries_inside'][1] = floats[0]
+                self.results['mysql_vars']['queries_queued'][1] = floats[1]
 
         self.results['mysql_vars']['current_transactions'][1] = current_transactions
         self.results['mysql_vars']['active_transactions'][1] = active_transactions
         self.results['mysql_vars']['innodb_lock_wait_secs'][1] = innodb_lock_wait_secs
         self.results['mysql_vars']['locked_transactions'][1] = locked_transactions
         self.results['mysql_vars']['innodb_lock_structs'][1] = innodb_lock_structs
-
+        self.results['mysql_vars']['unflushed_log'][1] = int(self.results['mysql_vars']['log_bytes_written'][1]) - int(self.results['mysql_vars']['log_bytes_flushed'][1])
+        self.results['mysql_vars']['uncheckpointed_bytes'][1] = int(self.results['mysql_vars']['log_bytes_written'][1]) - int(self.results['mysql_vars']['last_checkpoint'][1])
         return
 
 
