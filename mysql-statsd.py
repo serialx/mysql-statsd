@@ -38,7 +38,7 @@ def main(settings, logger):
         '''
         Make a statsd timer call
         '''
-        statsd.timer('mysql.{0}'.format(stat), value)
+        stats.timer('mysql.{0}'.format(stat), value)
 
     def stats_gauge(stat, value):
         '''
