@@ -3,7 +3,6 @@ import argparse
 import ConfigParser
 import os
 import sys
-import time
 import socket
 import MySQLdb
 import statsd
@@ -25,7 +24,8 @@ def main(settings, logger):
         logger.warn('Cannot connect to {0}'.format(settings['host']))
         sys.exit()
 
-    stats = statsd.StatsClient(settings['statsd_host'], settings['statsd_port'], prefix=settings['prefix'], batch_len=10000)
+    prefix = '{0}.{1}'.format(settings['prefix'], socket.gethostname().replace('.', '-'))
+    stats = statsd.StatsClient(settings['statsd_host'], settings['statsd_port'], prefix=prefix, batch_len=10000)
     gather = mysqlstats.Gather(mysql_cursor, stats, logger)
 
     def stats_count(stat, value):
@@ -71,7 +71,7 @@ def main(settings, logger):
 
 def validate_config(config_file):
     # Takes the location of the config file, sets some defualts and then parses the ini options
-    config = ConfigParser.RawConfigParser({'prefix': socket.gethostname().replace('.', '-')})
+    config = ConfigParser.RawConfigParser({'prefix': ''})
     config.read(config_file)
     config_dict = {}
     config_dict['interval'] = config.get('general', 'poll_interval')
@@ -84,8 +84,9 @@ def validate_config(config_file):
     config_dict['statsd_port'] = config.getint('statsd', 'port')
     return config_dict
 
+
 def create_logger_object():
-    #If a logfile exists the the logging will be sent there if not it will go to stout unbuffered.
+    # If a logfile exists the the logging will be sent there if not it will go to stout unbuffered.
     logger = logging.getLogger("MySQL Statsd")
     level = getattr(logging, args.loglevel.upper())
     logger.setLevel(level)
@@ -112,17 +113,16 @@ if __name__ == '__main__':
                         help="What level would you like to log at? INFO, DEBUG, WARN", metavar="LOG_LEVEL", default="INFO")
     args = parser.parse_args()
 
-    #Create a logging object
+    # Create a logging object
     logger = create_logger_object()
     logger.info('Starting MySQL-statsd')
 
     # If the config file does not exist log and throw an error
     if not os.path.exists(args.config):
         logger.warn('{0} Exiting'.format(args.config))
-        # raise IOError('Specified config file does not exist.')
+        raise IOError('Specified config file does not exist.')
         sys.exit()
-    #Validate the supplied config
+    # Validate the supplied config
     settings = validate_config(args.config)
 
     main(settings, logger)
-
