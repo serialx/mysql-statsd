@@ -6,6 +6,7 @@ import sys
 import socket
 import MySQLdb
 import statsd
+import time
 import mysqlstats
 from twisted.internet.task import LoopingCall
 from twisted.internet import reactor
@@ -21,7 +22,8 @@ def main(settings, logger):
         logger.info('Connection to MySQL on {0} sucessful'.format(settings['host']))
 
     except MySQLdb.OperationalError:
-        logger.warn('Cannot connect to {0}'.format(settings['host']))
+        logger.critical('Cannot connect to {0}'.format(settings['host']))
+        time.sleep(5)
         sys.exit()
 
     prefix = '{0}.{1}'.format(settings['prefix'], socket.gethostname().replace('.', '-'))
@@ -60,13 +62,20 @@ def main(settings, logger):
                 statsd_call(result, results['mysql_vars'][result][1])
             stats.flush()
             return
+        elif not results['connected']:
+            for result in results['mysql_vars']:
+                statsd_call = calls[results['mysql_vars'][result][0]]
+                statsd_call(result, 0)
+            stats.flush()
+            reactor.callFromThread(reactor.stop)
         else:
-            logger.warn('Something is wrong.... Shutting down - see logs for errors')
+            logger.critical('Something is wrong.... Shutting down - see logs for errors')
             reactor.callFromThread(reactor.stop)
 
     loop = LoopingCall(collect)
     loop.start(int(settings['interval']))
     reactor.run()
+    logger.warn('Connection to MySQL lost. Shutting down.')
 
 
 def validate_config(config_file):

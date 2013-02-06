@@ -1,5 +1,6 @@
 from vars import *
 import re
+import copy
 import MySQLdb
 
 class Gather(object):
@@ -9,15 +10,16 @@ class Gather(object):
         self.statsd = statsd
         self.logger = logger
         self.log_permissions = 0
-
+        self.warned = False
 
     def collect(self):
         '''
         Here the correct calls are made to collect the different sets of information from the mysql server
         '''
+        imported_vars = copy.deepcopy(mysql_variables)
         self.results = {
         'connected': True,
-        'mysql_vars': mysql_variables
+        'mysql_vars': imported_vars
         }
         self.show_status()
         self.show_engine_status()
@@ -38,8 +40,8 @@ class Gather(object):
             return self.db_error(query)
 
         for stat in self.mysql_status:
-            if stat[0] in self.results['mysql_vars']:
-                self.results['mysql_vars'][stat[0]][1] = stat[1]
+            if stat[0].lower() in self.results['mysql_vars']:
+                self.results['mysql_vars'][stat[0].lower()][1] = stat[1]
         return
 
 
@@ -363,7 +365,9 @@ class Gather(object):
             test_query = 'SELECT current_user()'
             self.mysql_cur.execute(test_query)
         except self.mysql_cur.OperationalError:
-            self.logger.warn('Unable to query MySQL')
+            if not self.warned:
+                self.logger.critical('Unable to query MySQL')
+                self.warned = True
             self.results['connected'] = False
             return
 
