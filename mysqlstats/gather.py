@@ -346,7 +346,7 @@ class Gather(object):
         else:
             self.results['mysql_vars']['slave_sql_running'][1] = 1
 
-        if mysql_slave_status[32]:
+        if mysql_slave_status is not None:
             self.results['mysql_vars']['seconds_behind_master'][1] = mysql_slave_status[32]
         else:
             self.results['mysql_vars']['seconds_behind_master'][1] = 0
@@ -382,3 +382,4 @@ class Gather(object):
         '''
         floats = re.findall(r"[-+]?\d*\.\d+|\d+", row)
         return floats
+
