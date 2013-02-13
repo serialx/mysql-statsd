@@ -61,11 +61,11 @@ class Gather(object):
 
         self.engine_status = self.mysql_engine_status[0][2]
         transactions_value = 0
-        current_transactions = 0
-        active_transactions = 0
-        innodb_lock_wait_secs = 0
-        locked_transactions = 0
-        innodb_lock_structs = 0
+        self.current_transactions = 0
+        self.active_transactions = 0
+        self.innodb_lock_wait_secs = 0
+        self.locked_transactions = 0
+        self.innodb_lock_structs = 0
         trx_recorded = False
 
         for row in self.engine_status.split('\n'):
@@ -122,14 +122,14 @@ class Gather(object):
                 continue
 
             elif trx_recorded and '---TRANSACTION' in row:
-                current_transactions += 1
+                self.current_transactions += 1
                 if 'ACTIVE' in row:
-                    active_transactions += 1
+                    self.active_transactions += 1
                 continue
 
             elif trx_recorded and '------- TRX HAS BEEN' in row:
                 floats = self.row_float(row)
-                innodb_lock_wait_secs += floats[0]
+                self.innodb_lock_wait_secs += floats[0]
                 continue
 
             elif 'read views open inside InnoDB' in row:
@@ -146,10 +146,11 @@ class Gather(object):
             elif 'lock struct(s)' in row:
                 floats = self.row_float(row)
                 if 'LOCK WAIT' in row:
-                    innodb_lock_structs += floats[0]
-                    locked_transactions += 1
+                    self.innodb_lock_structs += int(floats[0])
+                    self.locked_transactions += 1
                 else:
-                    innodb_lock_structs += floats[0]
+                    self.innodb_lock_structs += int(floats[0])
+
                 continue
 
             elif 'OS file reads' in row:
@@ -310,11 +311,11 @@ class Gather(object):
                 self.results['mysql_vars']['queries_inside'][1] = floats[0]
                 self.results['mysql_vars']['queries_queued'][1] = floats[1]
 
-        self.results['mysql_vars']['current_transactions'][1] = current_transactions
-        self.results['mysql_vars']['active_transactions'][1] = active_transactions
-        self.results['mysql_vars']['innodb_lock_wait_secs'][1] = innodb_lock_wait_secs
-        self.results['mysql_vars']['locked_transactions'][1] = locked_transactions
-        self.results['mysql_vars']['innodb_lock_structs'][1] = innodb_lock_structs
+        self.results['mysql_vars']['current_transactions'][1] = self.current_transactions
+        self.results['mysql_vars']['active_transactions'][1] = self.active_transactions
+        self.results['mysql_vars']['innodb_lock_wait_secs'][1] = self.innodb_lock_wait_secs
+        self.results['mysql_vars']['locked_transactions'][1] = self.locked_transactions
+        self.results['mysql_vars']['innodb_lock_structs'][1] = self.innodb_lock_structs
         self.results['mysql_vars']['unflushed_log'][1] = int(self.results['mysql_vars']['log_bytes_written'][1]) - int(self.results['mysql_vars']['log_bytes_flushed'][1])
         self.results['mysql_vars']['uncheckpointed_bytes'][1] = int(self.results['mysql_vars']['log_bytes_written'][1]) - int(self.results['mysql_vars']['last_checkpoint'][1])
         return
@@ -346,10 +347,10 @@ class Gather(object):
         else:
             self.results['mysql_vars']['slave_sql_running'][1] = 1
 
-        if mysql_slave_status is not None:
-            self.results['mysql_vars']['seconds_behind_master'][1] = mysql_slave_status[32]
-        else:
+        if mysql_slave_status[32] is None:
             self.results['mysql_vars']['seconds_behind_master'][1] = 0
+        else:
+            self.results['mysql_vars']['seconds_behind_master'][1] = mysql_slave_status[32]
 
         self.results['mysql_vars']['relay_log_space'][1] = mysql_slave_status[22]
 
