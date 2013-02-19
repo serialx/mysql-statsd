@@ -8,6 +8,7 @@ import MySQLdb
 import statsd
 import time
 import mysqlstats
+import osstats
 from twisted.internet.task import LoopingCall
 from twisted.internet import reactor
 
@@ -28,25 +29,26 @@ def main(settings, logger):
 
     prefix = '{0}.{1}'.format(settings['prefix'], socket.gethostname().replace('.', '-'))
     stats = statsd.StatsClient(settings['statsd_host'], settings['statsd_port'], prefix=prefix, batch_len=10000)
-    gather = mysqlstats.Gather(mysql_cursor, stats, logger)
+    gather = mysqlstats.Gather(mysql_cursor, stats, logger, settings)
+    os_gather = osstats.Gather(logger)
 
-    def stats_count(stat, value):
+    def stats_count(stat, value, prefix):
         '''
         Increment a statsd counter
         '''
-        stats.incr('mysql.{0}'.format(stat), value)
+        stats.incr('{0}.{1}'.format(prefix, stat), value)
 
-    def stats_timer(stat, value):
+    def stats_timer(stat, value, prefix):
         '''
         Make a statsd timer call
         '''
-        stats.timer('mysql.{0}'.format(stat), value)
+        stats.timer('{0}.{1}'.format(prefix, stat), value)
 
-    def stats_gauge(stat, value):
+    def stats_gauge(stat, value, prefix):
         '''
         Make a guage statsd call
         '''
-        stats.gauge('mysql.{0}'.format(stat), value)
+        stats.gauge('{0}.{1}'.format(prefix, stat), value)
 
     calls = {
         'gauge': stats_gauge,
@@ -55,22 +57,29 @@ def main(settings, logger):
         }
 
     def collect():
+        osresults = os_gather.collect()
+        for result in osresults:
+            statsd_call = calls[osresults[result][0]]
+            statsd_call(result, osresults[result][1], 'os')
+
+
         results = gather.collect()
         if results['connected']:
             for result in results['mysql_vars']:
                 statsd_call = calls[results['mysql_vars'][result][0]]
-                statsd_call(result, results['mysql_vars'][result][1])
+                statsd_call(result, results['mysql_vars'][result][1], 'mysql')
             stats.flush()
             return
         elif not results['connected']:
             for result in results['mysql_vars']:
                 statsd_call = calls[results['mysql_vars'][result][0]]
-                statsd_call(result, 0)
+                statsd_call(result, 0, 'mysql')
             stats.flush()
             reactor.callFromThread(reactor.stop)
         else:
             logger.critical('Something is wrong.... Shutting down - see logs for errors')
             reactor.callFromThread(reactor.stop)
+
 
     loop = LoopingCall(collect)
     loop.start(int(settings['interval']))
@@ -85,10 +94,10 @@ def validate_config(config_file):
     config_dict = {}
     config_dict['interval'] = config.get('general', 'poll_interval')
     config_dict['prefix'] = config.get('general', 'prefix')
-    config_dict['puller_stats'] = config.getboolean('general', 'puller_stats')
     config_dict['host'] = config.get('mysql', 'host')
     config_dict['user'] = config.get('mysql', 'user')
     config_dict['password'] = config.get('mysql', 'password')
+    config_dict['long_query_time'] = config.get('mysql', 'long_query_time')
     config_dict['statsd_host'] = config.get('statsd', 'host')
     config_dict['statsd_port'] = config.getint('statsd', 'port')
     return config_dict

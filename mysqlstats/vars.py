@@ -419,4 +419,8 @@ mysql_variables = {
 'log_bytes_written': ['gauge', 0],
 'unflushed_log': ['gauge', 0],
 'uncheckpointed_bytes': ['gauge', 0],
+'sleeping_queries': ['gauge', 0],
+'long_queries': ['gauge', 0],
+'processlist': ['gauge', 0],
+'sending_queries': ['gauge', 0],
 }

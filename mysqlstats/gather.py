@@ -5,12 +5,13 @@ import MySQLdb
 
 class Gather(object):
 
-    def __init__(self, mysql_cur, statsd, logger):
+    def __init__(self, mysql_cur, statsd, logger, settings):
         self.mysql_cur = mysql_cur
         self.statsd = statsd
         self.logger = logger
         self.log_permissions = 0
         self.warned = False
+        self.settings = settings
 
     def collect(self):
         '''
@@ -24,6 +25,7 @@ class Gather(object):
         self.show_status()
         self.show_engine_status()
         self.slave_status()
+        self.show_process()
         return self.results
 
     def show_status(self):
@@ -44,6 +46,33 @@ class Gather(object):
                 self.results['mysql_vars'][stat[0].lower()][1] = stat[1]
         return
 
+    def show_process(self):
+        query = 'SHOW PROCESSLIST'
+        try:
+            self.mysql_cur.execute(query)
+            self.mysql_processlist = self.mysql_cur.fetchall()
+        except self.mysql_cur.OperationalError:
+            return self.db_error(query)
+
+        self.processlist = 0
+        self.long_queries = 0
+        self.sleeping_queries = 0
+        self.sending_queries = 0
+
+        for process in self.mysql_processlist:
+            self.processlist += 1
+            if process[5] > int(self.settings['long_query_time']):
+                self.long_queries += 1
+            if 'Sleep' in process[4]:
+                self.sleeping_queries += 1
+            if 'Sending data' in process[4]:
+                self.sending_queries += 1
+
+        self.results['mysql_vars']['sleeping_queries'][1] = self.sleeping_queries
+        self.results['mysql_vars']['long_queries'][1] = self.long_queries
+        self.results['mysql_vars']['processlist'][1] = self.processlist
+        self.results['mysql_vars']['sending_queries'][1] = self.sending_queries
+        return
 
     def show_engine_status(self):
         '''
