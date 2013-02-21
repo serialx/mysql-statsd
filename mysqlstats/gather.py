@@ -158,7 +158,7 @@ class Gather(object):
 
             elif trx_recorded and '------- TRX HAS BEEN' in row:
                 floats = self.row_float(row)
-                self.innodb_lock_wait_secs += floats[0]
+                self.innodb_lock_wait_secs += int(floats[0])
                 continue
 
             elif 'read views open inside InnoDB' in row:
